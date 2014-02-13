@@ -19,6 +19,10 @@ package net.floodlightcontroller.core.internal;
 
 import java.util.List;
 
+import org.flowforwarding.warp.protocol.ofmessages.IOFMessageProvider;
+import org.flowforwarding.warp.protocol.ofmessages.IOFMessageProviderFactory;
+import org.flowforwarding.warp.protocol.ofmessages.OFMessageProviderFactoryAvroProtocol;
+import org.flowforwarding.warp.protocol.ofmessages.OFMessageRef;
 import org.jboss.netty.buffer.ChannelBuffer;
 import org.jboss.netty.channel.Channel;
 import org.jboss.netty.channel.ChannelHandlerContext;
@@ -34,7 +38,8 @@ import org.openflow.protocol.factory.OFMessageFactory;
  */
 public class OFMessageDecoder extends FrameDecoder {
 
-    OFMessageFactory factory = BasicFactory.getInstance();
+    //TODO Warp <!--OFMessageFactory factory = BasicFactory.getInstance(); -->
+    IOFMessageProviderFactory factory = new OFMessageProviderFactoryAvroProtocol();
     
     @Override
     protected Object decode(ChannelHandlerContext ctx, Channel channel,
@@ -44,8 +49,34 @@ public class OFMessageDecoder extends FrameDecoder {
             // This check avoids that from reading curroupted frames
             return null;
         }
+        // TODO Warp <!--
+    	System.out.println ("--------WARP: OFMessageDecoder.decode: Entering");
+    	
+    	byte [] in = new byte[buffer.capacity()];
+    	buffer.readBytes(in);
+    	
+    	IOFMessageProvider provider = (IOFMessageProvider)ctx.getAttachment();
+    	
+    	if (provider == null) {
+    		System.out.println ("--------WARP: OFMessageDecoder.decode: Provider Initialization");
+        	provider = factory.getMessageProvider(in);
+        	provider.init();
+        	
+        	ctx.setAttachment(provider);
+        	return provider;        	
+    	}
 
-        List<OFMessage> message = factory.parseMessage(buffer);
+    	System.out.println ("--------WARP: OFMessageDecoder.decode: Incoming message");
+    	//List<OFMessage> message = factory.parseMessage(buffer);
+    	List<OFMessageRef> message = provider.parseMessages(in);
+    	
+    	if (message != null) {
+    		for (OFMessageRef m : message) {
+    			System.out.println ("--------WARP: OFMessageDecoder.decode: Incoming message is" + m.toString());
+    		}
+    	}
+        // TODO Warp -->
+    	
         return message;
     }
 
